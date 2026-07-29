@@ -63,8 +63,9 @@
 
 ### M5: 사이트 (2~3일)
 
-- Astro + Cloudflare Pages(무료) + 커스텀 도메인(연 1~2만 원) — 글은 마크다운 커밋으로 자동 배포
-- sitemap, 구조화 데이터(FAQ 스키마), Google Search Console + 네이버 서치어드바이저 등록
+- **Next.js(정적 export) + Vercel** (사용자 결정) — `web/` 디렉토리, 글은 `web/content/posts/*.md`
+- 정적 export라 추후 Cloudflare 등으로 이식 가능. 애드센스 부착 시점에 Vercel Pro(월 $20) 필요 여부 재확인
+- sitemap·robots 자동 생성 포함. 남은 것: Vercel 연동, 커스텀 도메인, Search Console + 서치어드바이저 등록, FAQ 스키마
 
 ### M6: 운영 전환
 
