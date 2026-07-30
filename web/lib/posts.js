@@ -7,9 +7,13 @@ import remarkHtml from 'remark-html';
 
 const POSTS_DIR = path.join(process.cwd(), 'content', 'posts');
 
+// 빌드 시 페이지마다 전체 파일을 다시 읽지 않도록 모듈 캐시 (1만 편 규모 대비)
+let cache = null;
+
 export function getAllPosts() {
+  if (cache) return cache;
   if (!fs.existsSync(POSTS_DIR)) return [];
-  return fs
+  cache = fs
     .readdirSync(POSTS_DIR)
     .filter((f) => f.endsWith('.md'))
     .map((file) => {
@@ -28,6 +32,7 @@ export function getAllPosts() {
       };
     })
     .sort((a, b) => (a.pubDate < b.pubDate ? 1 : -1));
+  return cache;
 }
 
 export function getPost(slug) {
