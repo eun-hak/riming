@@ -38,7 +38,62 @@ export function getCategories() {
   return [...new Set(getAllPosts().map((p) => p.category))];
 }
 
+export function getRelated(post, limit = 5) {
+  return getAllPosts()
+    .filter((p) => p.category === post.category && p.slug !== post.slug)
+    .slice(0, limit);
+}
+
+function headingId(text, used) {
+  let id = text
+    .trim()
+    .replace(/[^\w가-힣\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .toLowerCase() || 'section';
+  while (used.has(id)) id += '-1';
+  used.add(id);
+  return id;
+}
+
+/** 마크다운 → { html, toc }. h2/h3에 앵커 id를 붙이고 목차를 추출한다. */
 export async function renderMarkdown(md) {
-  const out = await remark().use(remarkGfm).use(remarkHtml).process(md);
-  return out.toString();
+  const raw = String(
+    await remark().use(remarkGfm).use(remarkHtml).process(md)
+  );
+  const toc = [];
+  const used = new Set();
+  const html = raw.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (m, lvl, inner) => {
+    const text = inner.replace(/<[^>]+>/g, '').trim();
+    const id = headingId(text, used);
+    toc.push({ level: Number(lvl), text, id });
+    return `<h${lvl} id="${id}">${inner}</h${lvl}>`;
+  });
+  return { html, toc };
+}
+
+/** "자주 묻는 질문" 섹션에서 Q/A 추출 (FAQPage 구조화 데이터용). */
+export function extractFaq(md) {
+  const idx = md.search(/#{2,4}\s*자주 묻는 질문/);
+  if (idx === -1) return [];
+  const lines = md.slice(idx).split('\n').slice(1);
+  const faqs = [];
+  let q = null;
+  let a = [];
+  const push = () => {
+    if (q && a.length) faqs.push({ q, a: a.join(' ').trim() });
+  };
+  for (const line of lines) {
+    const qm =
+      line.match(/^\*\*Q[.)]?\s*(.+?)\*\*\s*$/) ||
+      line.match(/^#{2,4}\s+(?:\d+[.)]\s*)?(.+)/);
+    if (qm) {
+      push();
+      q = qm[1].replace(/\*\*/g, '').trim();
+      a = [];
+    } else if (q && line.trim()) {
+      a.push(line.replace(/^A[.)]?\s*/, '').replace(/[*_#]/g, '').trim());
+    }
+  }
+  push();
+  return faqs.filter((f) => f.q.length > 5 && f.a.length > 10);
 }
