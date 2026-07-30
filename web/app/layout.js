@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { SITE_NAME, SITE_DESC, SITE_URL } from '../lib/consts.js';
-import { getCategories } from '../lib/posts.js';
+import { getAllPosts, getCategories } from '../lib/posts.js';
 import './globals.css';
 
 export const metadata = {
@@ -12,7 +12,47 @@ export const metadata = {
     locale: 'ko_KR',
     type: 'website',
   },
+  twitter: {
+    card: 'summary_large_image',
+  },
 };
+
+function Sidebar() {
+  const posts = getAllPosts();
+  const categories = getCategories();
+  return (
+    <aside className="sidebar">
+      <div className="widget">
+        <div className="widget-head">최신 문서</div>
+        <ol>
+          {posts.slice(0, 10).map((p, i) => (
+            <li key={p.slug}>
+              <Link href={`/posts/${p.slug}/`}>
+                <span className="rank">{i + 1}</span>
+                <span className="w-title">{p.title}</span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="widget">
+        <div className="widget-head">카테고리</div>
+        <ul>
+          {categories.map((c) => (
+            <li key={c}>
+              <Link href={`/category/${c}/`}>
+                <span className="w-title">{c}</span>
+                <span className="w-cnt">
+                  {posts.filter((p) => p.category === c).length}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
+  );
+}
 
 export default function RootLayout({ children }) {
   const categories = getCategories();
@@ -28,15 +68,25 @@ export default function RootLayout({ children }) {
           </div>
           <nav className="cat-nav" aria-label="카테고리">
             <div className="cat-nav-inner">
+              <Link href="/">전체</Link>
               {categories.map((c) => (
                 <Link key={c} href={`/category/${c}/`}>{c}</Link>
               ))}
             </div>
           </nav>
         </header>
-        <main>{children}</main>
+        <div className="wrap">
+          <div className="content">{children}</div>
+          <Sidebar />
+        </div>
         <footer className="site-footer">
           <div className="footer-inner">
+            <nav className="footer-nav" aria-label="사이트 정보">
+              <Link href="/about/">소개</Link>
+              <Link href="/contact/">문의하기</Link>
+              <Link href="/privacy/">개인정보처리방침</Link>
+              <Link href="/terms/">이용약관</Link>
+            </nav>
             <p>
               <strong>{SITE_NAME}</strong>은 생활 속 궁금증을 문서 형태로
               정리하는 정보 사이트입니다.

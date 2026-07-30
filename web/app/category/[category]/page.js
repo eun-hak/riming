@@ -21,23 +21,19 @@ export default async function CategoryPage({ params }) {
   const name = decodeURIComponent(category);
   const posts = getAllPosts().filter((p) => p.category === name);
   return (
-    <div className="doc">
-      <nav className="breadcrumb" aria-label="현재 위치">
-        <Link href="/">홈</Link>
-        <span className="sep">›</span>
-        <span>{name}</span>
-      </nav>
-      <h1 className="doc-title">{name}</h1>
-      <p className="meta">{posts.length}개 문서</p>
-      <ul className="post-list">
+    <section className="box">
+      <div className="box-head">
+        <h1>{name}</h1>
+        <span className="more">{posts.length}개 문서</span>
+      </div>
+      <ul className="board">
         {posts.map((post) => (
           <li key={post.slug}>
             <Link className="title" href={`/posts/${post.slug}/`}>{post.title}</Link>
-            <p>{post.description}</p>
-            <span className="meta">{post.pubDate}</span>
+            <span className="date">{post.pubDate.slice(5)}</span>
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
