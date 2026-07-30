@@ -183,6 +183,40 @@ a:hover { text-decoration: underline; }
 
 .meta { color: var(--muted); font-size: 0.82rem; }
 
+/* ── 문의 폼 ──────────────────────────── */
+.contact-form { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1.2rem; }
+.contact-form label { display: flex; flex-direction: column; gap: 0.3rem; font-weight: 700; font-size: 0.9rem; }
+.contact-form .req { color: #d64545; }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+@media (max-width: 640px) { .form-row-2 { grid-template-columns: 1fr; } }
+.contact-form input, .contact-form select, .contact-form textarea {
+  font: inherit; font-weight: 400; color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 0.55rem 0.75rem; background: #fff;
+}
+.contact-form input:focus, .contact-form select:focus, .contact-form textarea:focus {
+  outline: 2px solid var(--navy); outline-offset: -1px; border-color: var(--navy);
+}
+.contact-form textarea { resize: vertical; min-height: 140px; }
+.contact-form button {
+  font: inherit; font-weight: 800; color: #fff; background: var(--navy);
+  border: 0; border-radius: 6px; padding: 0.7rem 1.2rem; cursor: pointer;
+  align-self: flex-start; min-width: 160px;
+}
+.contact-form button:hover { background: var(--navy-dark); }
+.contact-form button:disabled { opacity: 0.6; cursor: default; }
+.form-success {
+  margin-top: 1.2rem; text-align: center; background: var(--strip-bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 2rem 1.5rem;
+}
+.form-success-icon {
+  width: 52px; height: 52px; margin: 0 auto 0.7rem; border-radius: 50%;
+  background: var(--navy); color: #fff; font-size: 1.6rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.form-success h2 { margin: 0 0 0.4rem; font-size: 1.2rem; }
+.form-success p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
 /* ── 푸터 ─────────────────────────────── */
 .site-footer { background: #ffffff; border-top: 1px solid var(--line); }
 .footer-inner { max-width: 1080px; margin: 0 auto; padding: 1.2rem 1rem 1.8rem; }
