@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { getAllPosts, getCategories, decodeParam } from '../../../lib/posts.js';
+import { pageCount, slice } from '../../../lib/paging.js';
+import Pager from '../../../components/Pager.js';
 
 export function generateStaticParams() {
   return getCategories().map((category) => ({
@@ -20,6 +22,7 @@ export default async function CategoryPage({ params }) {
   const { category } = await params;
   const name = decodeParam(category);
   const posts = getAllPosts().filter((p) => p.category === name);
+  const total = pageCount(posts.length);
   return (
     <section className="box">
       <div className="box-head">
@@ -27,13 +30,14 @@ export default async function CategoryPage({ params }) {
         <span className="more">{posts.length}개 문서</span>
       </div>
       <ul className="board">
-        {posts.map((post) => (
+        {slice(posts, 1).map((post) => (
           <li key={post.slug}>
             <Link className="title" href={`/posts/${post.slug}/`}>{post.title}</Link>
             <span className="date">{post.pubDate.slice(5)}</span>
           </li>
         ))}
       </ul>
+      <Pager category={name} current={1} total={total} />
     </section>
   );
 }

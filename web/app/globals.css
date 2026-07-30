@@ -217,6 +217,19 @@ a:hover { text-decoration: underline; }
 .form-success h2 { margin: 0 0 0.4rem; font-size: 1.2rem; }
 .form-success p { margin: 0; color: var(--muted); font-size: 0.92rem; }
 
+/* ── 페이저 ───────────────────────────── */
+.pager {
+  display: flex; gap: 0.35rem; justify-content: center; align-items: center;
+  padding: 0.9rem; border-top: 1px solid var(--line-soft); flex-wrap: wrap;
+}
+.pager a, .pager .cur {
+  min-width: 2rem; text-align: center; padding: 0.25rem 0.55rem;
+  border: 1px solid var(--line); border-radius: 4px; font-size: 0.88rem;
+}
+.pager a { color: var(--fg); }
+.pager a:hover { border-color: var(--blue); color: var(--blue); text-decoration: none; }
+.pager .cur { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 700; }
+
 /* ── 푸터 ─────────────────────────────── */
 .site-footer { background: #ffffff; border-top: 1px solid var(--line); }
 .footer-inner { max-width: 1080px; margin: 0 auto; padding: 1.2rem 1rem 1.8rem; }
