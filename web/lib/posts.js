@@ -39,6 +39,21 @@ export function getPost(slug) {
   return getAllPosts().find((p) => p.slug === slug);
 }
 
+/** dev/프로덕션에서 인코딩 횟수가 달라도 안전하게 원문으로 복원 */
+export function decodeParam(value) {
+  let prev = value;
+  try {
+    let cur = decodeURIComponent(value);
+    while (cur !== prev) {
+      prev = cur;
+      cur = decodeURIComponent(cur);
+    }
+    return cur;
+  } catch {
+    return prev;
+  }
+}
+
 export function getCategories() {
   return [...new Set(getAllPosts().map((p) => p.category))];
 }

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import {
-  getAllPosts, getPost, getRelated, renderMarkdown, extractFaq,
+  getAllPosts, getPost, getRelated, renderMarkdown, extractFaq, decodeParam,
 } from '../../../lib/posts.js';
 import { SITE_NAME, SITE_URL } from '../../../lib/consts.js';
 
@@ -10,7 +10,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const post = getPost(decodeURIComponent(slug));
+  const post = getPost(decodeParam(slug));
   if (!post) return {};
   const url = `${SITE_URL}/posts/${encodeURIComponent(post.slug)}/`;
   return {
@@ -64,7 +64,7 @@ function Toc({ toc }) {
 
 export default async function PostPage({ params }) {
   const { slug } = await params;
-  const post = getPost(decodeURIComponent(slug));
+  const post = getPost(decodeParam(slug));
   if (!post) return null;
   const { html, toc } = await renderMarkdown(post.content);
   const related = getRelated(post);

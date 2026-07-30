@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getAllPosts, getCategories } from '../../../lib/posts.js';
+import { getAllPosts, getCategories, decodeParam } from '../../../lib/posts.js';
 
 export function generateStaticParams() {
   return getCategories().map((category) => ({
@@ -9,7 +9,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }) {
   const { category } = await params;
-  const name = decodeURIComponent(category);
+  const name = decodeParam(category);
   return {
     title: `${name} 문서 모음`,
     description: `${name} 관련 생활 정보 문서를 모아 보여드립니다.`,
@@ -18,7 +18,7 @@ export async function generateMetadata({ params }) {
 
 export default async function CategoryPage({ params }) {
   const { category } = await params;
-  const name = decodeURIComponent(category);
+  const name = decodeParam(category);
   const posts = getAllPosts().filter((p) => p.category === name);
   return (
     <section className="box">
