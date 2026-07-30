@@ -1,7 +1,10 @@
 import Link from 'next/link';
+import Script from 'next/script';
 import { SITE_NAME, SITE_DESC, SITE_URL } from '../lib/consts.js';
 import { getAllPosts, getCategories } from '../lib/posts.js';
 import './globals.css';
+
+const GA_ID = 'G-FWP892TKRV';
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -14,6 +17,12 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
+  },
+  verification: {
+    google: 'nGLC6wqeingyxdWpDtTR9DKlBw7TNDT9A8_l8PrHWt0',
+    other: {
+      'naver-site-verification': 'f9f942680d91d430826dae257b3824eaf1652c8e',
+    },
   },
 };
 
@@ -59,6 +68,16 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ko">
       <body>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="ga-init" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_ID}');`}
+        </Script>
         <header className="site-header">
           <div className="header-inner">
             <Link href="/" className="brand">
