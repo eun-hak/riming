@@ -84,10 +84,13 @@ class Gemini:
         self.api_key = api_key
         self.calls = 0
 
-    def generate(self, prompt, retries=3):
+    def generate(self, prompt, retries=3, json_mode=False):
+        gen_config = {"maxOutputTokens": 8192}
+        if json_mode:
+            gen_config["response_mime_type"] = "application/json"
         body = json.dumps({
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": 8192},
+            "generationConfig": gen_config,
         }).encode()
         req = urllib.request.Request(
             f"{API_BASE}/{MODEL}:generateContent", data=body,
@@ -109,6 +112,39 @@ class Gemini:
                 if attempt < retries - 1:
                     continue
                 raise RuntimeError("응답 파싱 실패")
+
+
+DEDUPE_PROMPT = """다음 '후보' 주제 각각이 '기존' 목록의 어떤 항목과 실질적으로 같은 주제인지 판정하라.
+표현·어순만 다르고 독자가 얻는 정보가 같으면 중복(dup=true)이다.
+대상·소재가 다르면(예: 세탁기 청소 vs 에어컨 청소) 중복이 아니다.
+후보끼리 서로 같은 주제여도 뒤의 것을 중복으로 표시하라.
+JSON 배열 [{{"idx": 번호, "dup": true/false}}] 만 출력.
+
+기존:
+{existing}
+
+후보:
+{cands}"""
+
+
+def dedupe_queue(gem, db, queue):
+    """생성 직전, 기존 글과 실질 중복인 주제를 걸러낸다 (재클러스터 이름 변형 대응)."""
+    existing = [r[0] for r in db.execute("SELECT topic FROM articles").fetchall()]
+    if not existing or not queue:
+        return queue
+    cands = "\n".join(f"{i}. {t}" for i, (t, _, _) in enumerate(queue))
+    try:
+        verdicts = json.loads(gem.generate(DEDUPE_PROMPT.format(
+            existing="\n".join(f"- {t}" for t in existing[-500:]),
+            cands=cands), json_mode=True))
+        dup_idx = {v["idx"] for v in verdicts if v.get("dup")}
+        kept = [q for i, q in enumerate(queue) if i not in dup_idx]
+        if dup_idx:
+            print(f"중복 가드: 후보 {len(queue)}개 중 {len(dup_idx)}개 제외")
+        return kept
+    except Exception as e:
+        print(f"중복 가드 실패({e}) — 필터 없이 진행", file=sys.stderr)
+        return queue
 
 
 def gen_single(gem, topic, keyword, intent):
@@ -207,8 +243,9 @@ def main():
         print(f"Gemini 호출: {gem.calls}")
         return
 
-    # run: 발행 큐 상위 n개 생성 (기본 single)
-    queue = get_queue(db, args.n)
+    # run: 발행 큐 상위 n개 생성 (기본 single) — 중복 가드 통과분만
+    queue = get_queue(db, args.n * 2)
+    queue = dedupe_queue(gem, db, queue)[:args.n]
     print(f"{len(queue)}개 주제 생성 시작")
     for topic, keyword, intent in queue:
         try:
