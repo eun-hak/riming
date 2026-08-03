@@ -24,7 +24,7 @@ export async function generateMetadata({ params }) {
       url,
       type: 'article',
       publishedTime: post.pubDate,
-      images: ['/opengraph-image'],
+      images: ['/og.png'],
     },
   };
 }
