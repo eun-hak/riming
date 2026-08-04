@@ -81,10 +81,11 @@ def main():
     backup()
     before = counts()
 
-    # 일요일: 인기 질문 리프레시 수집 + 재클러스터 (평일은 백로그 소화만)
+    # 일요일: 시드 자동 확장 → 인기 질문 수집 → 재클러스터 (평일은 백로그 소화만)
     if now.weekday() == 6:
+        run("시드 키워드 확장", ["expand_seeds.py", "run", "--add", "20"])
         run("주간 수집(sim/point 리프레시)",
-            ["collect.py", "bulk", "--sorts", "sim,point", "--pages", "2"])
+            ["collect.py", "bulk", "--sorts", "sim,point", "--pages", "3"])
         run("주간 클러스터링", ["cluster.py", "run"], timeout=7200)
 
     # 검증 범위 확대 (백로그에서 40개씩)
