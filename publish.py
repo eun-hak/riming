@@ -96,8 +96,9 @@ def main():
     cols = {r[1] for r in db.execute("PRAGMA table_info(articles)")}
     cat_col = "category" if "category" in cols else "NULL"
     rows = db.execute(
+        # 검증(verify.py)을 통과한 ready 만 발행한다.
         f"""SELECT id, topic, keyword, body_md, title, {cat_col} FROM articles
-            WHERE status = 'draft' ORDER BY id LIMIT ?""",
+            WHERE status = 'ready' ORDER BY id LIMIT ?""",
         (args.n,),
     ).fetchall()
     today = time.strftime("%Y-%m-%d")

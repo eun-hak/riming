@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""M6 일일 배치 — 백업 → (주1회 수집·클러스터) → 검증 확장 → 초안 보충 → 발행 → push.
+"""M6 일일 배치 — 백업 → (주1회 수집) → 롱테일 생성 → 검증 → 발행 → push.
 
-설계 (2026-07-30 사용자 결정):
-- 검수 단계 없음 (사후 점검), 발행 상한 PUBLISH_PER_DAY
-- 신규 수집은 일요일만 (평일은 기존 인기 질문 백로그 소화)
-- launchd로 매일 07:00 실행 (com.simsimi.riming.daily)
+설계
+- 2026-07-30: 사람 검수 없음(사후 점검), launchd 매일 07:00 (com.simsimi.riming.daily)
+- 2026-08-07: 롱테일 전환. 원본 질문 1건=글 1편, 배치 10건 생성, 데이터랩 검증 폐지.
+  대신 자동 검증(verify.py)이 규칙+LLM으로 걸러 ready 된 것만 발행한다.
 """
 
 import datetime
@@ -67,6 +67,10 @@ def counts():
     c["used_q"] = db.execute("SELECT COUNT(*) FROM used_questions").fetchone()[0]
     c["draft"] = db.execute(
         "SELECT COUNT(*) FROM articles WHERE status='draft'").fetchone()[0]
+    c["ready"] = db.execute(
+        "SELECT COUNT(*) FROM articles WHERE status='ready'").fetchone()[0]
+    c["rejected"] = db.execute(
+        "SELECT COUNT(*) FROM articles WHERE status='rejected'").fetchone()[0]
     c["published"] = db.execute(
         "SELECT COUNT(*) FROM articles WHERE status='published'").fetchone()[0]
     c["questions"] = db.execute("SELECT COUNT(*) FROM questions").fetchone()[0]
@@ -88,8 +92,11 @@ def main():
             timeout=7200)
 
     # 초안 보충 — 원본 질문 1건 = 글 1편, 배치 10건씩
-    need = max(GENERATE_PER_DAY, DRAFT_FLOOR - before["draft"])
+    need = max(GENERATE_PER_DAY, DRAFT_FLOOR - before["ready"])
     run("롱테일 초안 생성", ["longtail.py", "run", "--n", str(need)], timeout=14400)
+
+    # 검증 — 통과분(ready)만 발행 대상이 된다
+    run("초안 검증", ["verify.py", "run", "--n", str(need + 100)], timeout=3600)
 
     # 발행 + 배포
     run("발행", ["publish.py", "run", "--n", str(PUBLISH_PER_DAY)])
@@ -102,7 +109,7 @@ def main():
 ===== 요약 =====
 질문 수집:   {before['questions']} → {after['questions']}
 소진 질문:   {before['used_q']} → {after['used_q']} (재고 {after['questions'] - after['used_q']:,})
-초안 재고:   {before['draft']} → {after['draft']}
+발행 대기:   {before['ready']} → {after['ready']} (검증 반려 누적 {after['rejected']})
 발행 누적:   {before['published']} → {after['published']} (+{after['published'] - before['published']})
 """)
 
