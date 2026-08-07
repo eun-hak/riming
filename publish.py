@@ -32,7 +32,10 @@ CATEGORY = {
 SEED_TO_CAT = {seed: cat for cat, seeds in CATEGORY.items() for seed in seeds}
 
 
-def category_for(db, topic):
+def category_for(db, topic, stored=None):
+    # 롱테일 생성분은 articles.category 에 이미 판정 결과가 들어 있다.
+    if stored:
+        return stored
     row = db.execute(
         "SELECT keyword FROM topics WHERE topic = ? ORDER BY count DESC LIMIT 1",
         (topic,),
@@ -43,6 +46,21 @@ def category_for(db, topic):
 def slugify(text, fallback):
     s = re.sub(r"[^\w가-힣]+", "-", text).strip("-").lower()
     return s[:60] or fallback
+
+
+def unique_slug(base, fallback, taken):
+    """대량 발행에서 제목이 겹쳐도 URL 이 충돌하지 않게 보정."""
+    slug = slugify(base, fallback)
+    if slug not in taken:
+        taken.add(slug)
+        return slug
+    for i in range(2, 100):
+        cand = f"{slug}-{i}"
+        if cand not in taken:
+            taken.add(cand)
+            return cand
+    taken.add(fallback)
+    return fallback
 
 
 def strip_title(md):
@@ -75,18 +93,24 @@ def main():
         return
 
     POSTS_DIR.mkdir(parents=True, exist_ok=True)
+    cols = {r[1] for r in db.execute("PRAGMA table_info(articles)")}
+    cat_col = "category" if "category" in cols else "NULL"
     rows = db.execute(
-        """SELECT id, topic, keyword, body_md FROM articles
-           WHERE status = 'draft' ORDER BY id LIMIT ?""",
+        f"""SELECT id, topic, keyword, body_md, title, {cat_col} FROM articles
+            WHERE status = 'draft' ORDER BY id LIMIT ?""",
         (args.n,),
     ).fetchall()
     today = time.strftime("%Y-%m-%d")
-    for aid, topic, keyword, body in rows:
+    taken = {p.stem for p in POSTS_DIR.glob("*.md")}
+    published = 0
+    for aid, topic, keyword, body, stored_title, stored_cat in rows:
         title, rest = strip_title(body)
-        title = title or topic
+        # 롱테일 생성분은 본문에 h1 이 없고 title 컬럼에 SEO 제목이 들어 있다.
+        title = title or stored_title or topic
         desc = description_of(rest).replace('"', "'")
-        cat = category_for(db, topic)
-        slug = slugify(keyword or title, str(aid))
+        cat = category_for(db, topic, stored_cat)
+        slug_base = title.split("|")[0].strip() or keyword or title
+        slug = unique_slug(slug_base, str(aid), taken)
         front = "\n".join([
             "---",
             f'title: "{title.replace(chr(34), chr(39))}"',
@@ -99,9 +123,11 @@ def main():
         ])
         (POSTS_DIR / f"{slug}.md").write_text(front + rest + "\n")
         db.execute("UPDATE articles SET status='published' WHERE id=?", (aid,))
-        print(f"  [{cat}] {title}")
+        published += 1
+        if published <= 5:
+            print(f"  [{cat}] {title}")
     db.commit()
-    print(f"{len(rows)}편 발행 → {POSTS_DIR}")
+    print(f"{published}편 발행 → {POSTS_DIR}")
 
 
 if __name__ == "__main__":

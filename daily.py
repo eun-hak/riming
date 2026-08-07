@@ -17,10 +17,9 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parent
 DB = BASE / "data" / "kin.db"
 BACKUP_DIR = BASE / "backup"
-PUBLISH_PER_DAY = 15
-GENERATE_PER_DAY = 20
-VALIDATE_GROW = 40      # 매일 검증 주제 40개씩 확대
-DRAFT_FLOOR = 30        # 초안 재고 최소선
+PUBLISH_PER_DAY = 300     # 롱테일 전환 — 크롤 예산 성장에 맞춰 조정
+GENERATE_PER_DAY = 350    # 발행분 + 재고 여유
+DRAFT_FLOOR = 200         # 초안 재고 최소선
 BACKUP_KEEP = 7
 
 
@@ -65,7 +64,7 @@ def backup():
 def counts():
     db = sqlite3.connect(DB)
     c = {}
-    c["validated"] = db.execute("SELECT COUNT(*) FROM topic_scores").fetchone()[0]
+    c["used_q"] = db.execute("SELECT COUNT(*) FROM used_questions").fetchone()[0]
     c["draft"] = db.execute(
         "SELECT COUNT(*) FROM articles WHERE status='draft'").fetchone()[0]
     c["published"] = db.execute(
@@ -81,22 +80,16 @@ def main():
     backup()
     before = counts()
 
-    # 일요일: 시드 자동 확장 → 인기 질문 수집 → 재클러스터 (평일은 백로그 소화만)
+    # 일요일: 시드 확장 + 질문 재고 보충 (클러스터링은 롱테일 전환으로 불필요)
     if now.weekday() == 6:
         run("시드 키워드 확장", ["expand_seeds.py", "run", "--add", "20"])
         run("주간 수집(sim/point 리프레시)",
-            ["collect.py", "bulk", "--sorts", "sim,point", "--pages", "3"])
-        run("주간 클러스터링", ["cluster.py", "run"], timeout=7200)
+            ["collect.py", "bulk", "--sorts", "sim,point", "--pages", "5"],
+            timeout=7200)
 
-    # 검증 범위 확대 (백로그에서 40개씩)
-    target = min(before["validated"] + VALIDATE_GROW, 100000)
-    run("주제 검증 확대", ["validate.py", "run", "--top", str(target)])
-
-    # 초안 보충
-    need = max(GENERATE_PER_DAY,
-               DRAFT_FLOOR - before["draft"]) if before["draft"] < DRAFT_FLOOR \
-        else GENERATE_PER_DAY
-    run("초안 생성", ["generate.py", "run", "--n", str(need)], timeout=7200)
+    # 초안 보충 — 원본 질문 1건 = 글 1편, 배치 10건씩
+    need = max(GENERATE_PER_DAY, DRAFT_FLOOR - before["draft"])
+    run("롱테일 초안 생성", ["longtail.py", "run", "--n", str(need)], timeout=14400)
 
     # 발행 + 배포
     run("발행", ["publish.py", "run", "--n", str(PUBLISH_PER_DAY)])
@@ -108,7 +101,7 @@ def main():
     print(f"""
 ===== 요약 =====
 질문 수집:   {before['questions']} → {after['questions']}
-검증 주제:   {before['validated']} → {after['validated']}
+소진 질문:   {before['used_q']} → {after['used_q']} (재고 {after['questions'] - after['used_q']:,})
 초안 재고:   {before['draft']} → {after['draft']}
 발행 누적:   {before['published']} → {after['published']} (+{after['published'] - before['published']})
 """)
