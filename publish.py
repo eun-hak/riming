@@ -63,6 +63,14 @@ def unique_slug(base, fallback, taken):
     return fallback
 
 
+def yq(value):
+    """YAML 큰따옴표 스칼라로 안전하게 감싼다.
+    질문 원문에 " 가 들어간 경우가 있어 이스케이프하지 않으면 프론트매터가 깨진다."""
+    s = str(value or "").replace("\\", "\\\\").replace('"', '\\"')
+    s = re.sub(r"\s+", " ", s).strip()
+    return f'"{s}"'
+
+
 def strip_title(md):
     lines = md.splitlines()
     for i, line in enumerate(lines):
@@ -108,17 +116,17 @@ def main():
         title, rest = strip_title(body)
         # 롱테일 생성분은 본문에 h1 이 없고 title 컬럼에 SEO 제목이 들어 있다.
         title = title or stored_title or topic
-        desc = description_of(rest).replace('"', "'")
+        desc = description_of(rest)
         cat = category_for(db, topic, stored_cat)
         slug_base = title.split("|")[0].strip() or keyword or title
         slug = unique_slug(slug_base, str(aid), taken)
         front = "\n".join([
             "---",
-            f'title: "{title.replace(chr(34), chr(39))}"',
-            f'description: "{desc}"',
+            f"title: {yq(title)}",
+            f"description: {yq(desc)}",
             f"pubDate: {today}",
-            f'category: "{cat}"',
-            f'keyword: "{keyword or ""}"',
+            f"category: {yq(cat)}",
+            f"keyword: {yq(keyword)}",
             "---",
             "",
         ])
