@@ -62,7 +62,7 @@ def all_urls():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["next", "stats", "reset"])
+    ap.add_argument("mode", choices=["next", "all", "stats", "reset"])
     ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--format", choices=["txt", "json", "csv"], default="txt")
     ap.add_argument("--mark", action="store_true", help="뽑은 URL 을 제출 기록에 남긴다")
@@ -92,8 +92,22 @@ def main():
         print(f"{cur.rowcount}건 제출 기록 해제 (재제출 대상)")
         return
 
-    done = {r[0] for r in db.execute("SELECT url FROM submitted_urls")}
-    picked = [u for u in all_urls() if u not in done][:args.n]
+    if args.mode == "all":
+        picked = all_urls()
+        args.mark = False   # 전체 목록 출력은 제출 기록에 영향 주지 않는다
+    else:
+        done = {r[0] for r in db.execute("SELECT url FROM submitted_urls")}
+        picked = [u for u in all_urls() if u not in done]
+        # 미제출분이 바닥나면 처음부터 재순회 (오래된 제출부터 다시)
+        if not picked:
+            old = [r[0] for r in db.execute(
+                "SELECT url FROM submitted_urls ORDER BY submitted_at LIMIT ?",
+                (args.n,))]
+            db.executemany("DELETE FROM submitted_urls WHERE url=?",
+                           [(u,) for u in old])
+            db.commit()
+            picked = old
+        picked = picked[:args.n]
 
     if args.format == "json":
         payload = json.dumps({"site": SITE, "urls": picked},

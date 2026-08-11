@@ -20,6 +20,7 @@ BACKUP_DIR = BASE / "backup"
 PUBLISH_PER_DAY = 300     # 롱테일 전환 — 크롤 예산 성장에 맞춰 조정
 GENERATE_PER_DAY = 350    # 발행분 + 재고 여유
 DRAFT_FLOOR = 200         # 초안 재고 최소선
+SUBMIT_PER_DAY = 50       # 네이버 수집요청 일일 제출량
 BACKUP_KEEP = 7
 
 
@@ -101,12 +102,17 @@ def main():
     # 발행 + 배포
     run("발행", ["publish.py", "run", "--n", str(PUBLISH_PER_DAY)])
 
-    # 수집요청 크론이 가져갈 URL 목록 갱신 (사이트에 정적 파일로 배포)
-    sh("URL 목록 갱신",
-       'python3 submit_queue.py next --n 100000 --out web/public/urls.txt')
+    # 수집요청용 파일 2종을 사이트에 배포한다.
+    #  today.txt — 오늘 제출할 50개만. 서버는 받아서 전부 넘기면 되고 상태를 안 가진다
+    #  urls.txt  — 전체 목록(백업·재순회용)
+    sh("오늘치 수집요청 URL 생성",
+       f'python3 submit_queue.py next --n {SUBMIT_PER_DAY} --mark '
+       '--out web/public/naver/today.txt')
+    sh("전체 URL 목록 갱신",
+       'python3 submit_queue.py all --out web/public/urls.txt')
 
     sh("git push (Vercel 자동배포)",
-       'git add web/content/posts web/public/urls.txt && '
+       'git add web/content/posts web/public && '
        f'git commit -m "publish: {now:%Y-%m-%d} 자동 발행" && git push')
 
     after = counts()
