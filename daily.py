@@ -100,8 +100,13 @@ def main():
 
     # 발행 + 배포
     run("발행", ["publish.py", "run", "--n", str(PUBLISH_PER_DAY)])
+
+    # 수집요청 크론이 가져갈 URL 목록 갱신 (사이트에 정적 파일로 배포)
+    sh("URL 목록 갱신",
+       'python3 submit_queue.py next --n 100000 --out web/public/urls.txt')
+
     sh("git push (Vercel 자동배포)",
-       'git add web/content/posts && '
+       'git add web/content/posts web/public/urls.txt && '
        f'git commit -m "publish: {now:%Y-%m-%d} 자동 발행" && git push')
 
     after = counts()
