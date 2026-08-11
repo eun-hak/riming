@@ -105,9 +105,9 @@ def main():
     # 수집요청용 파일 2종을 사이트에 배포한다.
     #  today.txt — 오늘 제출할 50개만. 서버는 받아서 전부 넘기면 되고 상태를 안 가진다
     #  urls.txt  — 전체 목록(백업·재순회용)
-    sh("오늘치 수집요청 URL 생성",
-       f'python3 submit_queue.py next --n {SUBMIT_PER_DAY} --mark '
-       '--out web/public/naver/today.txt')
+    # 맥이 꺼져 배치를 걸러도 서버가 그날 파일을 받을 수 있게 14일치를 유지한다
+    sh("수집요청 URL 14일치 유지",
+       f'python3 submit_queue.py prepare --days 14 --n {SUBMIT_PER_DAY}')
     sh("전체 URL 목록 갱신",
        'python3 submit_queue.py all --out web/public/urls.txt')
 

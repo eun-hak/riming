@@ -62,13 +62,16 @@ def all_urls():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("mode", choices=["next", "all", "stats", "reset"])
+    ap.add_argument("mode", choices=["next", "all", "prepare", "stats", "reset"])
+    ap.add_argument("--days", type=int, default=14,
+                    help="prepare: 며칠치를 미리 만들어 둘지")
     ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--format", choices=["txt", "json", "csv"], default="txt")
     ap.add_argument("--mark", action="store_true", help="뽑은 URL 을 제출 기록에 남긴다")
     ap.add_argument("--channel", default="naver")
-    ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--out", help="파일로 저장 (미지정 시 표준출력)")
+    ap.add_argument("--dir", default="web/public/naver",
+                    help="prepare: 날짜별 파일을 둘 디렉터리")
     args = ap.parse_args()
 
     db = sqlite3.connect(DB)
@@ -82,6 +85,47 @@ def main():
         ).fetchone()[0]
         print(f"전체 URL {total:,} / 제출 완료 {done:,} / 남은 {total - done:,}")
         print(f"오늘 제출 {today}")
+        return
+
+    if args.mode == "prepare":
+        # 맥이 꺼져 배치가 걸러도 서버가 그날 파일을 받을 수 있게 미리 채워둔다.
+        # 이미 만들어 둔 날짜는 건드리지 않고 부족한 날짜만 새로 만든다.
+        import datetime
+        outdir = BASE / args.dir
+        outdir.mkdir(parents=True, exist_ok=True)
+        done = {r[0] for r in db.execute("SELECT url FROM submitted_urls")}
+        pool = [u for u in all_urls() if u not in done]
+        today = datetime.date.today()
+        now = time.strftime("%Y-%m-%dT%H:%M:%S")
+        made, cur = [], 0
+        for d in range(args.days):
+            day = today + datetime.timedelta(days=d)
+            f = outdir / f"{day:%Y-%m-%d}.txt"
+            if f.exists():
+                continue
+            chunk = pool[cur:cur + args.n]
+            if not chunk:      # 재고 소진 — 오래된 제출부터 재순회
+                old = [r[0] for r in db.execute(
+                    "SELECT url FROM submitted_urls ORDER BY submitted_at LIMIT ?",
+                    (args.n,))]
+                db.executemany("DELETE FROM submitted_urls WHERE url=?",
+                               [(u,) for u in old])
+                chunk = old
+            cur += args.n
+            f.write_text("\n".join(chunk) + "\n")
+            db.executemany("INSERT OR REPLACE INTO submitted_urls VALUES (?,?,?)",
+                           [(u, now, args.channel) for u in chunk])
+            made.append(f.name)
+        # 최신 파일을 today.txt 로도 복사 (날짜 모를 때의 기본 경로)
+        latest = outdir / f"{today:%Y-%m-%d}.txt"
+        if latest.exists():
+            (outdir / "today.txt").write_text(latest.read_text())
+        # 오래된 날짜 파일 정리
+        for f in outdir.glob("20*.txt"):
+            if f.stem < f"{today - datetime.timedelta(days=7)}":
+                f.unlink()
+        db.commit()
+        print(f"미리 생성 {len(made)}일치 (총 {args.days}일 버퍼 유지)")
         return
 
     if args.mode == "reset":
