@@ -57,7 +57,7 @@ a:hover { text-decoration: underline; }
   display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1rem;
   align-items: start;
 }
-@media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
 
 /* ── 박스 공통 (게시판 스타일) ─────────── */
 .box {
@@ -93,6 +93,7 @@ a:hover { text-decoration: underline; }
 }
 .badge:hover { text-decoration: none; }
 .board .title {
+  flex: 1; min-width: 0; /* flex 자식이 줄어들 수 있어야 ellipsis 동작 */
   color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .board .title:hover { color: var(--blue); }
@@ -114,7 +115,7 @@ a:hover { text-decoration: underline; }
 }
 .widget a:hover { background: var(--strip-bg); text-decoration: none; color: var(--blue); }
 .widget .rank { flex: none; font-weight: 800; color: var(--blue); font-size: 0.8rem; width: 1.1em; }
-.widget .w-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.widget .w-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .widget .w-cnt { flex: none; margin-left: auto; color: var(--muted); font-size: 0.78rem; }
 
 /* ── 문서(글) 페이지 ───────────────────── */
@@ -162,6 +163,7 @@ a:hover { text-decoration: underline; }
   margin: 1rem 0; padding: 0.55rem 1rem; border-left: 4px solid var(--navy);
   background: var(--strip-bg); border-radius: 0 6px 6px 0; color: #555;
 }
+.doc-body { overflow-wrap: break-word; }
 .doc-body hr { border: 0; border-top: 1px solid var(--line-soft); margin: 1.8rem 0; }
 .doc-body strong { font-weight: 800; }
 .doc-body mark { background: var(--mark); }
