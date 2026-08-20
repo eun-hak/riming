@@ -54,8 +54,9 @@ def all_urls():
         posts.append((date.group(1) if date else "9999-99-99", p.stem))
     for c in sorted(cats):
         urls.append(f"{SITE}/category/{urllib.parse.quote(c)}/")
-    # 발행이 오래된 글부터 — 가장 오래 기다린 페이지에 우선순위
-    for _, slug in sorted(posts):
+    # 새로 발행한 글부터 — 신선한 콘텐츠를 먼저 수집 요청해야 색인 가치가 크다.
+    # (오래된 글은 큐 뒤로 밀리는데, 필터 이전 저품질 분량이라 의도된 결과다)
+    for _, slug in sorted(posts, reverse=True):
         urls.append(f"{SITE}/posts/{urllib.parse.quote(slug)}/")
     return urls
 

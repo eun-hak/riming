@@ -21,6 +21,7 @@ PUBLISH_PER_DAY = 300     # 롱테일 전환 — 크롤 예산 성장에 맞춰 
 GENERATE_PER_DAY = 350    # 발행분 + 재고 여유
 DRAFT_FLOOR = 200         # 초안 재고 최소선
 SUBMIT_PER_DAY = 50       # 네이버 수집요청 일일 제출량
+SUBMIT_BUFFER_DAYS = 4    # 선생성 버퍼 (길수록 신규분 제출이 밀림)
 BACKUP_KEEP = 7
 
 
@@ -105,9 +106,10 @@ def main():
     # 수집요청용 파일 2종을 사이트에 배포한다.
     #  today.txt — 오늘 제출할 50개만. 서버는 받아서 전부 넘기면 되고 상태를 안 가진다
     #  urls.txt  — 전체 목록(백업·재순회용)
-    # 맥이 꺼져 배치를 걸러도 서버가 그날 파일을 받을 수 있게 14일치를 유지한다
-    sh("수집요청 URL 14일치 유지",
-       f'python3 submit_queue.py prepare --days 14 --n {SUBMIT_PER_DAY}')
+    # 맥이 며칠 꺼져도 서버가 그날 파일을 받도록 버퍼를 둔다. 다만 길게 잡으면
+    # 그만큼 신규 발행분의 제출이 밀리므로 4일치까지만 미리 만든다.
+    sh("수집요청 URL 4일치 유지",
+       f'python3 submit_queue.py prepare --days {SUBMIT_BUFFER_DAYS} --n {SUBMIT_PER_DAY}')
     sh("전체 URL 목록 갱신",
        'python3 submit_queue.py all --out web/public/urls.txt')
 
