@@ -124,6 +124,24 @@ def load_key():
 
 # ── 질문 선별 ────────────────────────────────────────────────────────────
 STOP = re.compile(r"(내공|급함|급해요|제발|ㅠ|ㅜ|ㅋ|\?|!|\.{2,})")
+
+# 지식iN docId 는 시간순으로 증가한다 (2021년 ≈ 3.87억, 2026년 ≈ 4.94억).
+# 오래된 질문은 "아이폰 13 사전예약", "소상공인 손실보전금"처럼 검색 수요가
+# 이미 사라진 주제가 많아, 2024년 이후분(≈4.78억)만 사용한다.
+MIN_DOC_ID = 478_000_000
+
+# 지식iN 상위에는 업체가 자문자답하는 홍보성 질문이 섞여 있다. 이런 주제로 글을
+# 써도 검색 수요가 없고 사이트 품질만 떨어뜨린다.
+AD = re.compile(
+    r"(지금\s*저렴|저렴하게|저렴한\s*곳|할인\s*중|이벤트\s*중|프로모션|최저가|"
+    r"1타\s*강사|유명한\s*곳|잘하는\s*곳|괜찮은\s*곳|어디가\s*좋|추천\s*부탁드려요|"
+    r"문의\s*드립니다\s*$|상담\s*받고|견적\s*문의)")
+
+# 종료·만료된 제도나 시점 지난 이벤트 — 지금 검색되지 않는다
+EXPIRED = re.compile(
+    r"(손실보전금|재난지원금|방역패스|백신패스|거리두기|코로나|위드코로나|"
+    r"박람회|페어|전시회|사전\s*예약|출시일|언제\s*나오|공모전|수능\s*접수|"
+    r"올림픽|월드컵|대선|총선)")
 BAD = re.compile(r"(성인|야동|도박|대출.*급전|담배|술.*판매|주식.*리딩|낙태|자살|"
                  r"[0-9]{2,3}-[0-9]{3,4}-[0-9]{4}|010[0-9]{8})")
 
@@ -145,10 +163,14 @@ def pick_questions(db, n):
     cur = db.execute(
         """SELECT q.doc_id, q.title FROM questions q
            WHERE q.doc_id NOT IN (SELECT doc_id FROM used_questions)
-           ORDER BY (SELECT MIN(rank) FROM hits h WHERE h.doc_id = q.doc_id)""")
+             AND CAST(q.doc_id AS INTEGER) >= ?
+           ORDER BY (SELECT MIN(rank) FROM hits h WHERE h.doc_id = q.doc_id)""",
+        (MIN_DOC_ID,))
     for doc_id, title in cur:
         t = title.strip()
         if not (10 <= len(t) <= 60) or BAD.search(t):
+            continue
+        if AD.search(t) or EXPIRED.search(t):
             continue
         clean = STOP.sub("", t).strip()
         if len(clean) < 8:
