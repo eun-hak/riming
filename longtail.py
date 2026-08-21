@@ -49,6 +49,20 @@ RULES = """당신은 네이버 검색에 최적화된 한국어 정보성 블로
 - 조건에 따라 답이 갈리면 "A인 경우 / B인 경우"로 나눠 설명한다.
 - 원본 질문의 오탈자·비속어·개인정보는 글에 옮기지 않는다."""
 
+KW_RULES = """당신은 네이버 검색에 최적화된 한국어 정보성 블로그 작가입니다.
+아래는 사람들이 네이버에 실제로 검색하는 키워드 목록이다.
+각 키워드를 검색한 사람이 원하는 답을 주는 글을 쓴다.
+
+공통 원칙
+- 존댓말(~합니다/~습니다). 단정·과장 금지. "도움이 되었길" 류 인사 금지.
+- 그 키워드를 검색하는 사람의 실제 의도를 짚어 그것부터 답한다.
+  (예: "폐업신고" -> 어디서 어떻게 언제까지 하는지, 안 하면 어떻게 되는지)
+- 확실한 것만 쓴다. 금액·기한·법조항처럼 변동되는 값은 단정하지 말고
+  "공식 채널에서 최신 기준 확인"으로 안내한다.
+- 기관명·서비스명은 널리 알려진 확실한 것만(정부24, 홈택스 등). 불확실하면 일반 표현.
+- 특정 업체·상품을 추천하거나 홍보하지 않는다. 고르는 기준을 설명한다.
+- 조건에 따라 답이 갈리면 "A인 경우 / B인 경우"로 나눠 설명한다."""
+
 TAIL = """
 
 ※각 필드 설명의 하한 글자 수를 반드시 지킨다. 항목 수를 채우려고 짧게 줄이지 말 것.
@@ -185,6 +199,21 @@ def pick_questions(db, n):
     return picked
 
 
+def pick_keywords(db, n):
+    """주제 사전(keyword_stats)에서 미사용 키워드를 우선순위대로 꺼낸다.
+
+    우선순위: 경쟁 '낮음' -> 볼륨 스위트스팟(300~8,000) -> 검색량 큰 순.
+    검색량이 아주 큰 것은 경쟁도 그만큼 세므로 중간 구간을 먼저 태운다.
+    """
+    return db.execute(
+        """SELECT keyword, vol, comp FROM keyword_stats
+           WHERE usable = 1 AND used_at IS NULL
+           ORDER BY CASE comp WHEN '낮음' THEN 0 ELSE 1 END,
+                    CASE WHEN vol BETWEEN 300 AND 8000 THEN 0 ELSE 1 END,
+                    vol DESC
+           LIMIT ?""", (n,)).fetchall()
+
+
 def ensure_tables(db):
     db.executescript("""
         CREATE TABLE IF NOT EXISTS used_questions (
@@ -199,11 +228,16 @@ def ensure_tables(db):
         db.execute("ALTER TABLE articles ADD COLUMN category TEXT")
     if "source_doc" not in cols:
         db.execute("ALTER TABLE articles ADD COLUMN source_doc TEXT")
+    ks = {r[1] for r in db.execute("PRAGMA table_info(keyword_stats)")}
+    if ks and "used_at" not in ks:
+        db.execute("ALTER TABLE keyword_stats ADD COLUMN used_at TEXT")
     db.commit()
 
 
-def generate(key, model, lo, hi, questions, retries=4):
-    prompt = (RULES + f"\n\n원본 질문 {len(questions)}개:\n"
+def generate(key, model, lo, hi, questions, retries=4, mode="question"):
+    head = KW_RULES if mode == "keyword" else RULES
+    label = "검색 키워드" if mode == "keyword" else "원본 질문"
+    prompt = (head + f"\n\n{label} {len(questions)}개:\n"
               + "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions)) + TAIL)
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
@@ -264,16 +298,26 @@ def main():
         return
 
     key = load_key()
-    pool = pick_questions(db, args.n)
-    print(f"질문 {len(pool)}건 선별 → 배치 {BATCH}건씩 생성")
     now = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+    # 주제 사전(검색 수요·경쟁도 검증분)을 우선 소비하고, 바닥나면 질문으로 보충한다.
+    kw_pool = pick_keywords(db, args.n)
+    q_pool = pick_questions(db, args.n - len(kw_pool)) if len(kw_pool) < args.n else []
+    print(f"주제 사전 {len(kw_pool)}건 + 질문 {len(q_pool)}건 → 배치 {BATCH}건씩 생성")
+
+    # (모드, 생성입력, 식별자) 로 통일해 한 루프에서 처리
+    pool = ([("keyword", kw, kw) for kw, _, _ in kw_pool]
+            + [("question", q, doc) for doc, q, _ in q_pool])
+    qkeys = {doc: k for doc, _, k in q_pool}
     made = quota_hit = 0
 
     for i in range(0, len(pool), BATCH):
         chunk = pool[i:i + BATCH]
+        mode = chunk[0][0]
+        chunk = [c for c in chunk if c[0] == mode]   # 모드가 섞이지 않게
         model, lo, hi = MODELS[(i // BATCH) % len(MODELS)]
         try:
-            out = generate(key, model, lo, hi, [c[1] for c in chunk])
+            out = generate(key, model, lo, hi, [c[1] for c in chunk], mode=mode)
         except RuntimeError as e:
             print(f"  ! {e}", file=sys.stderr)
             quota_hit += 1
@@ -283,19 +327,23 @@ def main():
             continue
         if not out:
             continue
-        for (doc_id, q, k), art in zip(chunk, out):
+        for (m, src, ident), art in zip(chunk, out):
             db.execute(
                 """INSERT INTO articles
                    (topic, keyword, title, body_md, method, model, status,
                     created_at, category, source_doc)
                    VALUES (?,?,?,?,?,?,'draft',?,?,?)""",
-                (q, q, art["title"], art["md"], f"longtail-b{BATCH}",
-                 model, now, art["category"], doc_id))
-            db.execute("INSERT OR REPLACE INTO used_questions VALUES (?,?,?)",
-                       (doc_id, k, now))
+                (src, src, art["title"], art["md"], f"{m}-b{BATCH}",
+                 model, now, art["category"], None if m == "keyword" else ident))
+            if m == "keyword":
+                db.execute("UPDATE keyword_stats SET used_at=? WHERE keyword=?",
+                           (now, ident))
+            else:
+                db.execute("INSERT OR REPLACE INTO used_questions VALUES (?,?,?)",
+                           (ident, qkeys.get(ident), now))
             made += 1
         db.commit()
-        print(f"  {made}/{len(pool)}편  [{model}]  예: {out[0]['title'][:40]}")
+        print(f"  {made}/{len(pool)}편  [{mode}/{model}]  예: {out[0]['title'][:38]}")
         time.sleep(SLEEP)
 
     print(f"완료: {made}편 생성")
