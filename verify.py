@@ -27,7 +27,7 @@ DB = BASE / "data" / "kin.db"
 EP = ("https://generativelanguage.googleapis.com/v1beta/models/"
       "gemini-3.5-flash-lite:generateContent?key={k}")
 
-MIN_CHARS = 1800
+MIN_CHARS = 1500   # longtail.py 와 동일하게 유지할 것
 MIN_SECTIONS = 4
 LLM_BATCH = 10
 
