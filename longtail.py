@@ -29,9 +29,11 @@ BATCH = 10
 # 목표는 분량이 아니라 정보 밀도다. 섹션을 늘리면 글자 수는 늘지만 내용이 아니라
 # 일반론이 늘어난다 (11~12 섹션 시험: "성향테스트" 4,515자 중 구체 문장 1개).
 # 쓸 내용이 있는 만큼만 쓰도록 섹션을 5~6 으로 낮추고 하한만 지킨다.
+# 3.1 은 섹션당 분량이 3.5보다 짧아 5~6 이면 하한(1,500)에 못 미친다. 실측:
+#   3.1 섹션6~7 → 1,793자 / 3.5 섹션6~7 → 1,866자 (5~6 은 하한에 걸림)
 MODELS = [
-    ("gemini-3.1-flash-lite", 5, 6),
-    ("gemini-3.5-flash-lite", 5, 6),
+    ("gemini-3.1-flash-lite", 6, 7),
+    ("gemini-3.5-flash-lite", 6, 7),
 ]
 MIN_CHARS = 1500
 SLEEP = 3
@@ -270,12 +272,17 @@ def generate(key, model, lo, hi, questions, retries=4, mode="question"):
                 data["candidates"][0]["content"]["parts"][0]["text"])["items"]
             out = [{"title": x["title"], "category": norm_category(x.get("category")),
                     "md": assemble(x)} for x in items]
-            short = [o for o in out if len(o["md"]) < MIN_CHARS]
-            if short:
-                print(f"    분량 미달 {len(short)}/{len(out)} → 재시도", file=sys.stderr)
+            # 배치 전체가 짧아지는 경향이 있어 절반 이상 미달이면 통째로 재시도하고,
+            # 소수만 짧으면 해당 편만 None 으로 비운다(입력과 순서를 맞춰야 하므로
+            # 목록에서 빼지 않는다).
+            short = sum(1 for o in out if len(o["md"]) < MIN_CHARS)
+            if short > len(out) // 2:
+                print(f"    분량 미달 {short}/{len(out)} → 배치 재시도", file=sys.stderr)
                 time.sleep(5)
                 continue
-            return out
+            if short:
+                print(f"    분량 미달 {short}건 제외", file=sys.stderr)
+            return [o if len(o["md"]) >= MIN_CHARS else None for o in out]
         except urllib.error.HTTPError as e:
             if e.code == 429:
                 raise RuntimeError(f"{model} 쿼터 소진") from e
@@ -339,6 +346,8 @@ def main():
         if not out:
             continue
         for (m, src, ident), art in zip(chunk, out):
+            if art is None:      # 분량 미달로 비워진 자리
+                continue
             db.execute(
                 """INSERT INTO articles
                    (topic, keyword, title, body_md, method, model, status,
@@ -354,7 +363,7 @@ def main():
                            (ident, qkeys.get(ident), now))
             made += 1
         db.commit()
-        print(f"  {made}/{len(pool)}편  [{mode}/{model}]  예: {out[0]['title'][:38]}")
+        print(f"  {made}/{len(pool)}편  [{mode}/{model}]  예: {next((o['title'] for o in out if o), '')[:38]}")
         time.sleep(SLEEP)
 
     print(f"완료: {made}편 생성")
