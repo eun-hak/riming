@@ -94,10 +94,22 @@ def main():
         import datetime
         outdir = BASE / args.dir
         outdir.mkdir(parents=True, exist_ok=True)
-        done = {r[0] for r in db.execute("SELECT url FROM submitted_urls")}
-        pool = [u for u in all_urls() if u not in done]
         today = datetime.date.today()
         now = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+        # 오늘 이후 파일은 아직 서버가 가져가지 않았다. 그대로 두면 만들 당시의
+        # 옛 글이 며칠 뒤에 제출되므로(버퍼 4일이면 3일 묵은 글), 매번 폐기하고
+        # 최신 발행분으로 다시 만든다. 제출 기록도 함께 해제해야 큐로 돌아온다.
+        for f in outdir.glob("20*.txt"):
+            if f.stem >= f"{today}":
+                urls = [u.strip() for u in f.read_text().splitlines() if u.strip()]
+                db.executemany("DELETE FROM submitted_urls WHERE url=?",
+                               [(u,) for u in urls])
+                f.unlink()
+        db.commit()
+
+        done = {r[0] for r in db.execute("SELECT url FROM submitted_urls")}
+        pool = [u for u in all_urls() if u not in done]
         made, cur = [], 0
         for d in range(args.days):
             day = today + datetime.timedelta(days=d)
