@@ -189,9 +189,12 @@ def pick_questions(db, n):
     picked, keys = [], set()
     cur = db.execute(
         """SELECT q.doc_id, q.title FROM questions q
+           LEFT JOIN question_type t ON t.doc_id = q.doc_id
            WHERE q.doc_id NOT IN (SELECT doc_id FROM used_questions)
              AND CAST(q.doc_id AS INTEGER) >= ?
-           ORDER BY (SELECT MIN(rank) FROM hits h WHERE h.doc_id = q.doc_id)""",
+             AND (t.topic_type IS NULL OR t.topic_type IN ('A','C'))
+           ORDER BY CASE t.topic_type WHEN 'A' THEN 0 WHEN 'C' THEN 1 ELSE 2 END,
+                    (SELECT MIN(rank) FROM hits h WHERE h.doc_id = q.doc_id)""",
         (MIN_DOC_ID,))
     for doc_id, title in cur:
         t = title.strip()
@@ -218,10 +221,14 @@ def pick_keywords(db, n):
     우선순위: 경쟁 '낮음' -> 볼륨 스위트스팟(300~8,000) -> 검색량 큰 순.
     검색량이 아주 큰 것은 경쟁도 그만큼 세므로 중간 구간을 먼저 태운다.
     """
+    # 유형 A(생활노하우)를 먼저 태운다. 사실·제도형(B)은 검색결과 상위를
+    # 공공기관이 점유해(실측 8.8/10) 신생 도메인이 이길 수 없으므로 제외한다.
     return db.execute(
         """SELECT keyword, vol, comp FROM keyword_stats
            WHERE usable = 1 AND used_at IS NULL
-           ORDER BY CASE comp WHEN '낮음' THEN 0 ELSE 1 END,
+             AND (topic_type IS NULL OR topic_type IN ('A','C'))
+           ORDER BY CASE topic_type WHEN 'A' THEN 0 WHEN 'C' THEN 1 ELSE 2 END,
+                    CASE comp WHEN '낮음' THEN 0 ELSE 1 END,
                     CASE WHEN vol BETWEEN 300 AND 8000 THEN 0 ELSE 1 END,
                     vol DESC
            LIMIT ?""", (n,)).fetchall()
