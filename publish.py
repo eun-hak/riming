@@ -10,6 +10,7 @@ import argparse
 import re
 import sqlite3
 import time
+import urllib.parse
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -43,9 +44,16 @@ def category_for(db, topic, stored=None):
     return SEED_TO_CAT.get(row[0] if row else "", "생활")
 
 
+# 한글은 URL 인코딩 시 글자당 9바이트가 되어 (예: 60자 -> 540바이트) 파일명
+# 길이 제한(255바이트)을 넘긴다. 글자 수가 아니라 인코딩 후 바이트로 자른다.
+MAX_SLUG_BYTES = 180
+
+
 def slugify(text, fallback):
     s = re.sub(r"[^\w가-힣]+", "-", text).strip("-").lower()
-    return s[:60] or fallback
+    while s and len(urllib.parse.quote(s)) > MAX_SLUG_BYTES:
+        s = s[:-1].rstrip("-")
+    return s or fallback
 
 
 def unique_slug(base, fallback, taken):
