@@ -81,7 +81,7 @@ def classify_questions(db, limit):
     pool = []
     for doc_id, title in rows:
         t = (title or "").strip()
-        if not (10 <= len(t) <= 60) or L.BAD.search(t):
+        if not (8 <= len(t) <= 60) or L.BAD.search(t):
             continue
         if L.AD.search(t) or L.EXPIRED.search(t):
             continue

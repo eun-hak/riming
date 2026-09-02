@@ -198,7 +198,7 @@ def pick_questions(db, n):
         (MIN_DOC_ID,))
     for doc_id, title in cur:
         t = title.strip()
-        if not (10 <= len(t) <= 60) or BAD.search(t):
+        if not (8 <= len(t) <= 60) or BAD.search(t):
             continue
         if AD.search(t) or EXPIRED.search(t):
             continue
