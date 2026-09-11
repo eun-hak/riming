@@ -5,6 +5,7 @@ import { getAllPosts, getCategories } from '../lib/posts.js';
 import './globals.css';
 
 const GA_ID = 'G-FWP892TKRV';
+const NAVER_WA = '2b17c85a35f5ea';
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -26,6 +27,7 @@ export const metadata = {
     google: 'nGLC6wqeingyxdWpDtTR9DKlBw7TNDT9A8_l8PrHWt0',
     other: {
       'naver-site-verification': 'f9f942680d91d430826dae257b3824eaf1652c8e',
+      'msvalidate.01': '112BB0292D8A2BCD2A6CA3E7C8C100B4',
     },
   },
 };
@@ -81,6 +83,19 @@ export default function RootLayout({ children }) {
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', '${GA_ID}');`}
+        </Script>
+        {/* 네이버 애널리틱스 — wcslog.js 로드가 끝난 뒤 wcs_do() 를 호출해야 집계된다.
+            원본 스니펫은 로드 전이면 조용히 건너뛰므로, 스크립트를 주입하고 onload 에서 호출한다. */}
+        <Script id="naver-wcs" strategy="afterInteractive">
+          {`window.wcs_add = window.wcs_add || {};
+            window.wcs_add['wa'] = '${NAVER_WA}';
+            (function(){
+              var s = document.createElement('script');
+              s.src = 'https://wcs.pstatic.net/wcslog.js';
+              s.async = true;
+              s.onload = function(){ if (window.wcs) { window.wcs_do(); } };
+              document.head.appendChild(s);
+            })();`}
         </Script>
         <header className="site-header">
           <div className="header-inner">
