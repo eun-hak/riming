@@ -169,6 +169,34 @@ EXPIRED = re.compile(
     r"(손실보전금|재난지원금|방역패스|백신패스|거리두기|코로나|위드코로나|"
     r"박람회|페어|전시회|사전\s*예약|출시일|언제\s*나오|공모전|수능\s*접수|"
     r"올림픽|월드컵|대선|총선)")
+# 실측(서치어드바이저)에서 클릭을 내는 것은 검색량이 큰 키워드가 아니라 특정
+# 제품·기기의 사용법·오류 질의였다. CTR 25~100% (지넷m1 비밀번호 100%,
+# 유튜브 가족 초대 한도 50%, mvr g1 pro 연결방법 25%). 제조사 매뉴얼이
+# 검색에 안 잡히고 블로그도 그 모델까지는 안 다뤄 자리가 비어 있기 때문이다.
+# 이 패턴은 A/B 유형 분류와 무관하게 우선 소비한다.
+HOWTO = re.compile(
+    r"(사용법|사용\s?방법|설정|연결|초기화|리셋|비밀번호|비번|오류|안\s?됨|안되|안돼|"
+    r"고장|교체|등록|해제|페어링|업데이트|설치|작동|변경법|변경\s?방법|해지|복구|"
+    r"인식|충전|동기화|재설정|끄는법|켜는법)")
+
+# '해지·해제·등록·설정'은 법률·제도 문맥에서도 쓰여( "계약해지", "가압류 해제",
+# "근저당권 설정" ) 그대로 두면 회피 대상인 제도형이 최우선으로 올라온다.
+# ('자격증'은 제외하지 않는다 — 실측 클릭 1위가 "열쇠수리공 자격증"이었다)
+LEGALISH = re.compile(
+    r"(계약|가압류|근저당|임대차|보증금|전세|월세|소송|고소|고발|위자료|상속|증여|"
+    r"세무|세금|과태료|벌금|급여|연금|보험료|보험금|변호사|법무사|등기|공증|약관|"
+    r"배상|채권|채무|파산|회생|압류|공탁|대출|청구권|명도|특약|판결|합의금|"
+    # 행정·제도 문맥도 같은 이유로 제외한다
+    r"주민등록|등본|초본|가족관계|정부24|증명서|외국인등록|사업자등록|인감|"
+    r"확정일자|전입신고|공단|건강보험|지원금|장려금|도약계좌|배움카드|"
+    r"공정증서|집행권|수급자격|기초연금|도약\s?계좌|크레딧|연말정산|원상복구)")
+
+
+def is_howto(text):
+    """제품·기기·서비스의 사용법·오류 질의인가 (법률·제도 문맥은 제외)."""
+    t = text or ""
+    return bool(HOWTO.search(t) and not LEGALISH.search(t))
+
 BAD = re.compile(r"(성인|야동|도박|대출.*급전|담배|술.*판매|주식.*리딩|낙태|자살|"
                  r"[0-9]{2,3}-[0-9]{3,4}-[0-9]{4}|010[0-9]{8})")
 
@@ -187,16 +215,16 @@ def pick_questions(db, n):
     used_keys = {r[0] for r in db.execute(
         "SELECT norm_key FROM used_questions WHERE norm_key IS NOT NULL")}
     picked, keys = [], set()
+    # 유형(A/C)만 보던 것을 바꿔, 사용법·오류 질의를 유형과 무관하게 먼저 태운다.
     cur = db.execute(
-        """SELECT q.doc_id, q.title FROM questions q
+        """SELECT q.doc_id, q.title, COALESCE(t.topic_type, '?') FROM questions q
            LEFT JOIN question_type t ON t.doc_id = q.doc_id
            WHERE q.doc_id NOT IN (SELECT doc_id FROM used_questions)
              AND CAST(q.doc_id AS INTEGER) >= ?
-             AND (t.topic_type IS NULL OR t.topic_type IN ('A','C'))
-           ORDER BY CASE t.topic_type WHEN 'A' THEN 0 WHEN 'C' THEN 1 ELSE 2 END,
-                    (SELECT MIN(rank) FROM hits h WHERE h.doc_id = q.doc_id)""",
+           ORDER BY (SELECT MIN(rank) FROM hits h WHERE h.doc_id = q.doc_id)""",
         (MIN_DOC_ID,))
-    for doc_id, title in cur:
+    prime, backup = [], []          # prime: 사용법·오류 / backup: 그 외 A·C
+    for doc_id, title, ttype in cur:
         t = title.strip()
         if not (8 <= len(t) <= 60) or BAD.search(t):
             continue
@@ -208,11 +236,17 @@ def pick_questions(db, n):
         k = norm_key(clean)
         if not k or k in used_keys or k in keys:
             continue
+        if is_howto(clean):
+            bucket = prime
+        elif ttype in ("A", "C", "?"):
+            bucket = backup
+        else:                       # 사실·제도형이면서 사용법도 아니면 제외
+            continue
         keys.add(k)
-        picked.append((doc_id, clean, k))
-        if len(picked) >= n:
+        bucket.append((doc_id, clean, k))
+        if len(prime) >= n:
             break
-    return picked
+    return (prime + backup)[:n]
 
 
 def pick_keywords(db, n):
@@ -226,7 +260,9 @@ def pick_keywords(db, n):
     return db.execute(
         """SELECT keyword, vol, comp FROM keyword_stats
            WHERE usable = 1 AND used_at IS NULL
-             AND (topic_type IS NULL OR topic_type IN ('A','C'))
+             AND (topic_type IS NULL OR topic_type IN ('A','C')
+                  OR keyword LIKE '%사용법%' OR keyword LIKE '%설정%'
+                  OR keyword LIKE '%연결%' OR keyword LIKE '%오류%')
            ORDER BY CASE topic_type WHEN 'A' THEN 0 WHEN 'C' THEN 1 ELSE 2 END,
                     CASE comp WHEN '낮음' THEN 0 ELSE 1 END,
                     CASE WHEN vol BETWEEN 300 AND 8000 THEN 0 ELSE 1 END,

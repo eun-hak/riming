@@ -23,6 +23,9 @@ import time
 import urllib.parse
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from longtail import is_howto        # noqa: E402  (선별 기준을 생성 쪽과 공유)
+
 BASE = Path(__file__).resolve().parent
 DB = BASE / "data" / "kin.db"
 POSTS = BASE / "web" / "content" / "posts"
@@ -41,23 +44,31 @@ def ensure(db):
 
 
 def all_urls():
-    """사이트의 제출 대상 URL — 홈·카테고리를 먼저, 그다음 글(오래된 순)."""
+    """제출 대상 URL — 홈·카테고리 먼저, 그다음 글.
+
+    글 순서는 '사용법·오류 글 먼저, 각 그룹 안에서는 최신순'이다.
+    실측에서 클릭을 내는 것이 특정 제품·기기의 사용법 질의였고(CTR 25~100%),
+    이런 글을 먼저 색인시켜야 제출 쿼터(하루 50건)의 값이 나온다.
+    """
     urls = [f"{SITE}/"]
-    cats, posts = set(), []
+    cats, prime, rest = set(), [], []
     for p in sorted(POSTS.glob("*.md")):
         txt = p.read_text(errors="ignore")
         head = txt[4:].partition("\n---\n")[0]
         cat = re.search(r'^category:\s*"?([^"\n]+)"?', head, re.M)
         date = re.search(r"^pubDate:\s*(\S+)", head, re.M)
+        title = re.search(r'^title:\s*"?([^"\n]*)"?', head, re.M)
+        kw = re.search(r'^keyword:\s*"?([^"\n]*)"?', head, re.M)
         if cat:
             cats.add(cat.group(1).strip())
-        posts.append((date.group(1) if date else "9999-99-99", p.stem))
+        text = f"{title.group(1) if title else ''} {kw.group(1) if kw else ''} {p.stem}"
+        row = (date.group(1) if date else "9999-99-99", p.stem)
+        (prime if is_howto(text) else rest).append(row)
     for c in sorted(cats):
         urls.append(f"{SITE}/category/{urllib.parse.quote(c)}/")
-    # 새로 발행한 글부터 — 신선한 콘텐츠를 먼저 수집 요청해야 색인 가치가 크다.
-    # (오래된 글은 큐 뒤로 밀리는데, 필터 이전 저품질 분량이라 의도된 결과다)
-    for _, slug in sorted(posts, reverse=True):
-        urls.append(f"{SITE}/posts/{urllib.parse.quote(slug)}/")
+    for group in (prime, rest):
+        for _, slug in sorted(group, reverse=True):
+            urls.append(f"{SITE}/posts/{urllib.parse.quote(slug)}/")
     return urls
 
 
