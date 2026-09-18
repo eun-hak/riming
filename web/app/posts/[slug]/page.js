@@ -1,11 +1,17 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import {
   getAllPosts, getPost, getRelated, renderMarkdown, extractFaq, decodeParam,
 } from '../../../lib/posts.js';
 import { SITE_NAME, SITE_URL } from '../../../lib/consts.js';
 
+// 최근 글만 빌드 때 굽고, 나머지는 첫 방문 때 렌더한 뒤 다음 배포까지 캐시한다.
+const PRERENDER = 200;
+export const dynamicParams = true;
+export const revalidate = false;
+
 export function generateStaticParams() {
-  return getAllPosts().map((post) => ({ slug: encodeURIComponent(post.slug) }));
+  return getAllPosts().slice(0, PRERENDER).map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }) {
@@ -65,7 +71,7 @@ function Toc({ toc }) {
 export default async function PostPage({ params }) {
   const { slug } = await params;
   const post = getPost(decodeParam(slug));
-  if (!post) return null;
+  if (!post) notFound();
   const { html, toc } = await renderMarkdown(post.content);
   const related = getRelated(post);
   const faqs = extractFaq(post.content);

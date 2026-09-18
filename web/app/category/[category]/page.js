@@ -3,10 +3,10 @@ import { getAllPosts, getCategories, decodeParam } from '../../../lib/posts.js';
 import { pageCount, slice } from '../../../lib/paging.js';
 import Pager from '../../../components/Pager.js';
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
-  return getCategories().map((category) => ({
-    category: encodeURIComponent(category),
-  }));
+  return getCategories().map((category) => ({ category }));
 }
 
 export async function generateMetadata({ params }) {

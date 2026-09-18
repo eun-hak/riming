@@ -1,42 +1,37 @@
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import matter from 'gray-matter';
 import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
 import remarkHtml from 'remark-html';
 
-const POSTS_DIR = path.join(process.cwd(), 'content', 'posts');
+// 빌드 전 scripts/build-index.mjs 가 만든다. 목록·사이드바는 메타데이터 JSON만,
+// 글 본문은 요청된 1편의 gzip 만 읽어 ISR 함수의 CPU·용량을 아낀다.
+const CONTENT = path.join(process.cwd(), 'content');
+const INDEX = path.join(CONTENT, 'index.json');
+const GZ_DIR = path.join(CONTENT, 'gz');
 
-// 빌드 시 페이지마다 전체 파일을 다시 읽지 않도록 모듈 캐시 (1만 편 규모 대비)
 let cache = null;
+let bySlug = null;
 
+/** 전체 글의 메타데이터 (본문 제외, 최신순) */
 export function getAllPosts() {
   if (cache) return cache;
-  if (!fs.existsSync(POSTS_DIR)) return [];
-  cache = fs
-    .readdirSync(POSTS_DIR)
-    .filter((f) => f.endsWith('.md'))
-    .map((file) => {
-      const slug = file.replace(/\.md$/, '');
-      const { data, content } = matter(
-        fs.readFileSync(path.join(POSTS_DIR, file), 'utf8')
-      );
-      return {
-        slug,
-        title: data.title ?? slug,
-        description: data.description ?? '',
-        pubDate: new Date(data.pubDate ?? Date.now()).toISOString().slice(0, 10),
-        category: data.category ?? '생활',
-        keyword: data.keyword ?? '',
-        content,
-      };
-    })
-    .sort((a, b) => (a.pubDate < b.pubDate ? 1 : -1));
+  cache = fs.existsSync(INDEX) ? JSON.parse(fs.readFileSync(INDEX, 'utf8')) : [];
+  bySlug = new Map(cache.map((p) => [p.slug, p]));
   return cache;
 }
 
+/** 글 1편 (본문 포함). 색인에 있는 slug 만 읽어 URL 로 임의 경로를 여는 것을 막는다. */
 export function getPost(slug) {
-  return getAllPosts().find((p) => p.slug === slug);
+  getAllPosts();
+  const meta = slug && bySlug.get(slug);
+  if (!meta) return undefined;
+  const file = path.join(GZ_DIR, `${slug}.md.gz`);
+  if (!file.startsWith(GZ_DIR + path.sep) || !fs.existsSync(file)) return undefined;
+  const { content } = matter(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8'));
+  return { ...meta, content };
 }
 
 /** dev/프로덕션에서 인코딩 횟수가 달라도 안전하게 원문으로 복원 */

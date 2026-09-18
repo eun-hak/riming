@@ -3,19 +3,14 @@ import { getAllPosts, getCategories, decodeParam } from '../../../../../lib/post
 import { pageCount, slice } from '../../../../../lib/paging.js';
 import Pager from '../../../../../components/Pager.js';
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   const posts = getAllPosts();
-  const categories = getCategories();
   const params = [];
-  for (const category of categories) {
+  for (const category of getCategories()) {
     const total = pageCount(posts.filter((p) => p.category === category).length);
-    for (let n = 2; n <= total; n += 1) {
-      params.push({ category: encodeURIComponent(category), n: String(n) });
-    }
-  }
-  // 2페이지가 아직 없으면 output:export가 빈 목록을 거부하므로 1페이지 폴백
-  if (params.length === 0 && categories.length > 0) {
-    params.push({ category: encodeURIComponent(categories[0]), n: '1' });
+    for (let n = 2; n <= total; n += 1) params.push({ category, n: String(n) });
   }
   return params;
 }
