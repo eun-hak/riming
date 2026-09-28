@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getAllPosts, getCategories } from '../lib/posts.js';
 
 export default function Home() {
@@ -13,12 +12,12 @@ export default function Home() {
           <section className="box" key={c}>
             <div className="box-head">
               <h2>{c}</h2>
-              <Link className="more" href={`/category/${c}/`}>더보기 ›</Link>
+              <a className="more" href={`/category/${c}/`}>더보기 ›</a>
             </div>
             <ul className="board">
               {catPosts.map((post) => (
                 <li key={post.slug}>
-                  <Link className="title" href={`/posts/${post.slug}/`}>{post.title}</Link>
+                  <a className="title" href={`/posts/${post.slug}/`}>{post.title}</a>
                   <span className="date">{post.pubDate.slice(5)}</span>
                 </li>
               ))}

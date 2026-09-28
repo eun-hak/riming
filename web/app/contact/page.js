@@ -13,7 +13,8 @@ export default function ContactPage() {
       <div className="doc-body">
         <p>
           {SITE_NAME}에 대한 의견을 들려주세요. 오류 제보, 다뤄줬으면 하는 주제
-          제안, 제휴 문의 모두 환영합니다. 보통 영업일 기준 2~3일 내에
+          제안, 제휴 문의 모두 환영합니다. 아래 양식을 채우면 메일 앱에
+          내용이 담긴 메일이 작성됩니다. 내용을 확인한 뒤 남겨주신 주소로
           답변드립니다.
         </p>
         <ContactForm />

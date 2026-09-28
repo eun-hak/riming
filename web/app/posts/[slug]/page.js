@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   getAllPosts, getPost, getRelated, renderMarkdown, extractFaq, decodeParam,
@@ -119,16 +118,16 @@ export default async function PostPage({ params }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <nav className="breadcrumb" aria-label="현재 위치">
-        <Link href="/">홈</Link>
+        <a href="/">홈</a>
         <span className="sep">›</span>
-        <Link href={`/category/${post.category}/`}>{post.category}</Link>
+        <a href={`/category/${post.category}/`}>{post.category}</a>
         <span className="sep">›</span>
         <span>{post.title}</span>
       </nav>
       <article>
         <h1 className="doc-title">{post.title}</h1>
         <div className="doc-meta">
-          <Link className="chip" href={`/category/${post.category}/`}>{post.category}</Link>
+          <a className="chip" href={`/category/${post.category}/`}>{post.category}</a>
           <span>최종 업데이트 {post.pubDate}</span>
         </div>
         <Toc toc={toc} />
@@ -140,7 +139,7 @@ export default async function PostPage({ params }) {
           <ul>
             {related.map((r) => (
               <li key={r.slug}>
-                <Link href={`/posts/${r.slug}/`}>{r.title}</Link>
+                <a href={`/posts/${r.slug}/`}>{r.title}</a>
               </li>
             ))}
           </ul>

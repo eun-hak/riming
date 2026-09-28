@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getAllPosts, getCategories, decodeParam } from '../../../../../lib/posts.js';
 import { pageCount, slice } from '../../../../../lib/paging.js';
 import Pager from '../../../../../components/Pager.js';
@@ -44,7 +43,7 @@ export default async function CategoryPagedPage({ params }) {
       <ul className="board">
         {slice(posts, page).map((post) => (
           <li key={post.slug}>
-            <Link className="title" href={`/posts/${post.slug}/`}>{post.title}</Link>
+            <a className="title" href={`/posts/${post.slug}/`}>{post.title}</a>
             <span className="date">{post.pubDate.slice(5)}</span>
           </li>
         ))}

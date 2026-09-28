@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import Script from 'next/script';
 import { SITE_NAME, SITE_DESC, SITE_URL } from '../lib/consts.js';
 import { getAllPosts, getCategories } from '../lib/posts.js';
@@ -42,10 +41,10 @@ function Sidebar() {
         <ol>
           {posts.slice(0, 10).map((p, i) => (
             <li key={p.slug}>
-              <Link href={`/posts/${p.slug}/`}>
+              <a href={`/posts/${p.slug}/`}>
                 <span className="rank">{i + 1}</span>
                 <span className="w-title">{p.title}</span>
-              </Link>
+              </a>
             </li>
           ))}
         </ol>
@@ -55,12 +54,12 @@ function Sidebar() {
         <ul>
           {categories.map((c) => (
             <li key={c}>
-              <Link href={`/category/${c}/`}>
+              <a href={`/category/${c}/`}>
                 <span className="w-title">{c}</span>
                 <span className="w-cnt">
                   {posts.filter((p) => p.category === c).length}
                 </span>
-              </Link>
+              </a>
             </li>
           ))}
         </ul>
@@ -99,16 +98,16 @@ export default function RootLayout({ children }) {
         </Script>
         <header className="site-header">
           <div className="header-inner">
-            <Link href="/" className="brand">
+            <a href="/" className="brand">
               {SITE_NAME}<span className="brand-dot">.</span>
-            </Link>
+            </a>
             <span className="tagline">{SITE_DESC}</span>
           </div>
           <nav className="cat-nav" aria-label="카테고리">
             <div className="cat-nav-inner">
-              <Link href="/">전체</Link>
+              <a href="/">전체</a>
               {categories.map((c) => (
-                <Link key={c} href={`/category/${c}/`}>{c}</Link>
+                <a key={c} href={`/category/${c}/`}>{c}</a>
               ))}
             </div>
           </nav>
@@ -120,10 +119,10 @@ export default function RootLayout({ children }) {
         <footer className="site-footer">
           <div className="footer-inner">
             <nav className="footer-nav" aria-label="사이트 정보">
-              <Link href="/about/">소개</Link>
-              <Link href="/contact/">문의하기</Link>
-              <Link href="/privacy/">개인정보처리방침</Link>
-              <Link href="/terms/">이용약관</Link>
+              <a href="/about/">소개</a>
+              <a href="/contact/">문의하기</a>
+              <a href="/privacy/">개인정보처리방침</a>
+              <a href="/terms/">이용약관</a>
             </nav>
             <p>
               <strong>{SITE_NAME}</strong>은 생활 속 궁금증을 문서 형태로

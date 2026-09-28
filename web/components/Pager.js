@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { pagerHref } from '../lib/paging.js';
 
 export default function Pager({ category, current, total }) {
@@ -7,17 +6,17 @@ export default function Pager({ category, current, total }) {
   return (
     <nav className="pager" aria-label="페이지 이동">
       {current > 1 && (
-        <Link href={pagerHref(category, current - 1)}>‹ 이전</Link>
+        <a href={pagerHref(category, current - 1)}>‹ 이전</a>
       )}
       {pages.map((n) =>
         n === current ? (
           <span key={n} className="cur">{n}</span>
         ) : (
-          <Link key={n} href={pagerHref(category, n)}>{n}</Link>
+          <a key={n} href={pagerHref(category, n)}>{n}</a>
         )
       )}
       {current < total && (
-        <Link href={pagerHref(category, current + 1)}>다음 ›</Link>
+        <a href={pagerHref(category, current + 1)}>다음 ›</a>
       )}
     </nav>
   );
