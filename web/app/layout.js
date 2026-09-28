@@ -5,6 +5,7 @@ import './globals.css';
 
 const GA_ID = 'G-FWP892TKRV';
 const NAVER_WA = '2b17c85a35f5ea';
+const ADSENSE_ID = 'pub-1410200096892996';
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
@@ -26,6 +27,7 @@ export const metadata = {
     google: 'nGLC6wqeingyxdWpDtTR9DKlBw7TNDT9A8_l8PrHWt0',
     other: {
       'naver-site-verification': 'f9f942680d91d430826dae257b3824eaf1652c8e',
+      'google-adsense-account': `ca-${ADSENSE_ID}`,
       'msvalidate.01': '112BB0292D8A2BCD2A6CA3E7C8C100B4',
     },
   },
@@ -135,6 +137,15 @@ export default function RootLayout({ children }) {
             </p>
           </div>
         </footer>
+        {/* 애드센스 자동광고 — body 끝, hydration 이후 로드.
+            게재 강도는 코드가 아니라 애드센스 콘솔에서 조절한다.
+            목표: PV당 노출 3~4회 이하, CTR 2% 이하 (몽글은 8.3회·4.24%로 과밀) */}
+        <Script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${ADSENSE_ID}`}
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
