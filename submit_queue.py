@@ -30,6 +30,7 @@ BASE = Path(__file__).resolve().parent
 DB = BASE / "data" / "kin.db"
 POSTS = BASE / "web" / "content" / "posts"
 SITE = "https://riming.plentyer.com"
+RETENTION_DAYS = 30               # 과거 날짜 파일 보관 기간 (제출 서버 설정과 일치해야 함)
 
 
 def ensure(db):
@@ -144,9 +145,13 @@ def main():
         latest = outdir / f"{today:%Y-%m-%d}.txt"
         if latest.exists():
             (outdir / "today.txt").write_text(latest.read_text())
-        # 오래된 날짜 파일 정리
+        # 오래된 날짜 파일 정리.
+        # 30일: 제출 서버가 실패로 밀렸을 때 과거 날짜 파일을 되찾을 수 있는 여유.
+        # 7일이던 시절엔 밀림 6일이면 그 날짜 50건이 경고 없이 영구 유실됐다.
+        # 다른 사이트(몽글·가비지·페이트 등)와 동일한 값이며, 파일 1개가 7KB라 비용은 없다.
+        # ※ 서버 쪽 naver-submit.mjs 의 riming.retentionDays 도 30 이어야 효과가 난다.
         for f in outdir.glob("20*.txt"):
-            if f.stem < f"{today - datetime.timedelta(days=7)}":
+            if f.stem < f"{today - datetime.timedelta(days=RETENTION_DAYS)}":
                 f.unlink()
         db.commit()
         print(f"미리 생성 {len(made)}일치 (총 {args.days}일 버퍼 유지)")
