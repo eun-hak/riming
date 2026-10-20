@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CONTACT_EMAIL } from '../lib/consts.js';
+import { CONTACT_EMAIL, SITE_NAME, SITE_URL, mailtoHref } from '../lib/consts.js';
 
 // 별도 메일 서버 없이 동작하는 문의 경로.
 // 작성한 내용을 mailto 로 넘겨 방문자의 메일 앱에서 실제로 발송되게 한다.
@@ -14,8 +14,9 @@ export default function ContactForm() {
   function handleSubmit(e) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const subject = `[리밍 문의/${f.get('category')}] ${f.get('subject')}`;
+    const subject = `[${SITE_NAME}/${f.get('category')}] ${f.get('subject')}`;
     const body = [
+      `보낸 사이트: ${SITE_NAME} (${SITE_URL})`,
       `이름: ${f.get('name')}`,
       `답변받을 이메일: ${f.get('email')}`,
       `문의 유형: ${f.get('category')}`,
@@ -70,7 +71,7 @@ export default function ContactForm() {
       )}
       <p className="form-note">
         메일 앱을 쓰지 않으신다면{' '}
-        <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+        <a href={mailtoHref('문의')}>{CONTACT_EMAIL}</a>
         {' '}로 바로 보내주셔도 됩니다.
       </p>
     </>

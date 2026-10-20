@@ -1,4 +1,4 @@
-import { SITE_NAME, CONTACT_EMAIL } from '../../lib/consts.js';
+import { SITE_NAME, CONTACT_EMAIL, mailtoHref } from '../../lib/consts.js';
 
 export const metadata = {
   title: '소개',
@@ -43,7 +43,7 @@ export default function AboutPage() {
         <h2>문의</h2>
         <p>
           내용 오류 제보, 제휴 등 모든 문의는{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> 로 보내주세요.
+          <a href={mailtoHref('문의')}>{CONTACT_EMAIL}</a> 로 보내주세요.
         </p>
       </div>
     </div>

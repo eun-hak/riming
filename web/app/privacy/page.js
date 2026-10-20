@@ -1,4 +1,4 @@
-import { SITE_NAME, CONTACT_EMAIL, LAUNCH_DATE } from '../../lib/consts.js';
+import { SITE_NAME, CONTACT_EMAIL, LAUNCH_DATE, mailtoHref } from '../../lib/consts.js';
 
 export const metadata = {
   title: '개인정보처리방침',
@@ -67,7 +67,7 @@ export default function PrivacyPage() {
         <h2>5. 개인정보 보호책임자 및 문의</h2>
         <p>
           개인정보 관련 문의:{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          <a href={mailtoHref('개인정보 문의')}>{CONTACT_EMAIL}</a>
         </p>
 
         <h2>6. 고지 의무</h2>

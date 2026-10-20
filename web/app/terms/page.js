@@ -1,4 +1,4 @@
-import { SITE_NAME, CONTACT_EMAIL, LAUNCH_DATE } from '../../lib/consts.js';
+import { SITE_NAME, CONTACT_EMAIL, LAUNCH_DATE, mailtoHref } from '../../lib/consts.js';
 
 export const metadata = {
   title: '이용약관',
@@ -58,7 +58,7 @@ export default function TermsPage() {
 
         <h2>제6조 (문의)</h2>
         <p>
-          약관에 대한 문의: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          약관에 대한 문의: <a href={mailtoHref('약관 문의')}>{CONTACT_EMAIL}</a>
         </p>
         <p className="meta">시행일: {LAUNCH_DATE}</p>
       </div>
