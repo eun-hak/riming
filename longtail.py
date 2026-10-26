@@ -264,7 +264,10 @@ def pick_keywords(db, n):
     return db.execute(
         """SELECT keyword, vol, comp FROM keyword_stats
            WHERE usable = 1 AND used_at IS NULL
-             AND (topic_type IS NULL OR topic_type IN ('A','C')
+             -- topic_type IS NULL(미분류)은 통과시키지 않는다. pick_questions 의
+             -- "?" 와 같은 구멍이었다 — 미분류 뭉치는 실측 80%가 B형이라,
+             -- 분류 전에 열어두면 B 차단 규칙을 그대로 우회한다.
+             AND (topic_type IN ('A','C')
                   OR keyword LIKE '%사용법%' OR keyword LIKE '%설정%'
                   OR keyword LIKE '%연결%' OR keyword LIKE '%오류%')
            ORDER BY CASE topic_type WHEN 'A' THEN 0 WHEN 'C' THEN 1 ELSE 2 END,
