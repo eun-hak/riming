@@ -28,7 +28,15 @@ BASE = Path(__file__).resolve().parent
 DB = BASE / "data" / "kin.db"
 
 MIN_VOL, MAX_VOL = 100, 30_000
-OK_COMP = ("낮음", "중간")
+# 2026-10-26: 경쟁도 게이트를 걷어냈다.
+# 검색광고의 compIdx 는 "광고주 입찰 경쟁"이지 SEO 난이도가 아니다(8/31 실측).
+# 실제 난이도를 가르는 것은 검색결과 상위의 기관·대형사 점유율이고, 그건
+# compIdx 가 아니라 주제 유형(A 노하우 / B 사실·제도)이 결정한다.
+# 그런데 이 게이트가 '높음'을 전부 버리는 바람에 미판정 20.9만 개 중 판정
+# 대상이 900개(0.4%)로 줄어, 사전을 다시 채울 수 없는 상태였다.
+# 난이도 판별은 classify_type.py(A/C만 사용)에 맡기고 여기서는 쓰지 않는다.
+OK_COMP = ("낮음", "중간", "높음")
+COMP_Q = ",".join("?" * len(OK_COMP))   # OK_COMP 길이에 맞춘 SQL 플레이스홀더
 
 # 광역·주요 지자체 + 흔한 지명 접미 — 지역 업체성 키워드 판별용
 REGION = (
@@ -156,7 +164,7 @@ def run_judge(limit=0):
 
     rows = db.execute(
         """SELECT keyword FROM keyword_stats
-           WHERE vol BETWEEN ? AND ? AND comp IN (?,?) AND usable IS NULL""",
+           WHERE vol BETWEEN ? AND ? AND comp IN ({COMP_Q}) AND usable IS NULL""".format(COMP_Q=COMP_Q),
         (MIN_VOL, MAX_VOL, *OK_COMP)).fetchall()
     pending = [k for (k,) in rows if not reject_reason(k)]
     # 정규식에서 걸린 것은 판정 없이 바로 0 으로 확정
@@ -199,7 +207,7 @@ def run_judge(limit=0):
 def load(db, extra_where=""):
     return db.execute(
         f"""SELECT keyword, vol, comp FROM keyword_stats
-            WHERE vol BETWEEN ? AND ? AND comp IN (?,?) {extra_where}
+            WHERE vol BETWEEN ? AND ? AND comp IN ({COMP_Q}) {extra_where}
             ORDER BY vol DESC""",
         (MIN_VOL, MAX_VOL, *OK_COMP)).fetchall()
 
