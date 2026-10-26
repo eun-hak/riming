@@ -238,9 +238,13 @@ def pick_questions(db, n):
             continue
         if is_howto(clean):
             bucket = prime
-        elif ttype in ("A", "C", "?"):
+        elif ttype in ("A", "C"):
             bucket = backup
-        else:                       # 사실·제도형이면서 사용법도 아니면 제외
+        else:
+            # B·D 와 "아직 분류되지 않은 것"을 모두 제외한다.
+            # 2026-10-26 까지는 "?"(미분류)도 통과시켰는데, 분류해 보니 그 뭉치의
+            # 80%가 B형이었다. 즉 B를 막는 규칙을 미분류 B가 그대로 통과해
+            # 10월 발행의 57%가 B형이 됐다. 분류를 먼저 돌려야 재고로 잡힌다.
             continue
         keys.add(k)
         bucket.append((doc_id, clean, k))
@@ -365,6 +369,16 @@ def main():
     kw_pool = pick_keywords(db, args.n)
     q_pool = pick_questions(db, args.n - len(kw_pool)) if len(kw_pool) < args.n else []
     print(f"주제 사전 {len(kw_pool)}건 + 질문 {len(q_pool)}건 → 배치 {BATCH}건씩 생성")
+
+    # 재고 경보 — 이 경로가 조용히 바뀌면 "검색량을 확인한 주제"에서 "확인하지
+    # 않은 주제"로 생산이 통째로 넘어간다. 2026-09 말에 실제로 그렇게 되었고
+    # 한 달간 아무도 몰랐다(진단 줄이 로그 뒤 2,000자 잘림에 묻혔다).
+    if not kw_pool:
+        print("⚠ 주제 사전(A·C형) 재고 0 — 전량 질문 폴백. 사전 재생산 필요",
+              file=sys.stderr)
+    if len(kw_pool) + len(q_pool) < args.n:
+        print(f"⚠ 주제 재고 부족: 요청 {args.n}건 중 {len(kw_pool) + len(q_pool)}건만 확보",
+              file=sys.stderr)
 
     # (모드, 생성입력, 식별자) 로 통일해 한 루프에서 처리
     pool = ([("keyword", kw, kw) for kw, _, _ in kw_pool]
